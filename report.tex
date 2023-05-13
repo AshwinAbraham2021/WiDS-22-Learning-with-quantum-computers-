@@ -1,0 +1,517 @@
+% AUTHOR: ASHWIN ABRAHAM
+
+\documentclass[12pt]{report}
+\usepackage[a4paper, total={6in, 8in}]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{algpseudocode}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{framed}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily,
+  commentstyle=\color{red},
+  keywordstyle=\color{blue},
+  %basicstyle=\footnotesize,
+  frame=lines,
+  numbers=left,
+  stepnumber=1,
+  showstringspaces=false,
+  tabsize=1,
+  breaklines=true,
+  breakatwhitespace=false,
+}
+\usepackage{hyperref}
+\hypersetup
+{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={\Huge \textbf{Reinforcement Learning}},
+    pdfpagemode=FullScreen,
+}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{multirow}
+
+
+\title{\Huge \textbf{Winter of Data Science Report} \\ on \\ \textbf{Quantum Machine Learning}}
+\author{\Large Ashwin Abraham}
+\date{\Large December 24th, 2022}
+
+\begin{document}
+\begin{titlepage}
+    \maketitle
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\chapter{Introduction to Reinforcement Learning}
+\section{What is Reinforcement Learning?}
+Reinforcement Learning is a type of Machine Learning where an agent learns to interact with it's environment in such a way as to maximize a reward signal.
+The agent is not told which actions are the best, but must learn this itself by trial and error.
+
+\section{Some Terminology}
+\begin{itemize}
+    \item The environment of the agent is characterized by it's \textbf{state}.
+    \item The agent can take \textbf{actions} in order to modify the state.
+    \item An action is taken by our agent every \textbf{timestep}.
+    \item The state of the environment may change without any action from the agent (for example in two player games, where the other player is modelled as part of the environment).
+    \item Every \textbf{timestep}, our agent takes an action and gets a \textbf{reward} based on the previous state and the action chosen.
+    \item The goal of our agent is to learn a \textbf{policy/strategy} (a mapping from state to action) that maximizes the \textbf{total reward} the agent recieves.
+    \item The \textbf{value} of a state is a measure of the maximum possible reward the agent can accumulate that state. For games that don't terminate, we can
+    define the value of a state as the average reward per unit time that the agent can acquire from that state. In this situation it is clear that we are better of with a policy that chooses the 
+    action leading to the state of the highest value, and not the action with the highest reward.
+\end{itemize}
+In general, all of these may be stochastic and may change with time.
+
+We have not defined any of these formally yet, and we shall revisit all these terms and define them when we learn about \textbf{Markov Decision Processes}, which are used to formally frame the Reinforcement Learning Problem.
+
+\section{Exploration vs Exploitation}
+The conflict between \textbf{exploration} and \textbf{exploitation} is one of the most challenging aspects of Reinforcement Learning.
+The problem arises due to the fact that we do not know neither the rewards associated with each action nor the value of each state beforehand.
+We can only estimate these from the rewards obtained so far.
+
+To improve our estimates, we must try out all states, even the ones with low estimated rewards. This is known as \textbf{exploration}.
+However, we must also try to maximize the reward that we collect. Also, it is more important to know precisely the values of the higher value states than those of the lower value ones. 
+To do this, we have to move to the states with the highest values. This is known as \textbf{exploitation}.
+Naturally, the two conflict with each other. 
+
+A large part of Reinforcement Learning is just finding creative ways of balancing exploration and exploitation.
+
+\section{Classical Methods}
+One situation where Reinforcement Learning is commonly used is in training an algorithm to play games. We shall soon look at Reinforcement Learning Algorithms that learn
+to play games. However, it is important to note that there are many classical ways of finding algorithms to win such games as well. Let us look at a few examples.
+\subsection{Game Trees}
+
+Let us look at two player \textit{perfect information}\footnote{Each player knows the entire state of the game at every stage} \textit{zero-sum}\footnote{If we associate to each outcome of the game a gain for each player (each player aims to maximize their gain), then for each outcome the sum of gains over all players is constant (taken to be $0$ by convention). In the two player case, this means that each game either ends with a win for one player and a loss for the other or with a draw.} turn based finite games, such as Tic-Tac-Toe, Chess, etc. Each of these games ends in either a win for a player and a loss for the other or in a draw.
+
+We can create a structure known as a game tree, which is a tree linking all the possible states the game can find itself in.
+Here each state corresponds to a node in the tree, with the starting position as the root. The children of each node correspond to the states reachable from the original node's state.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.6\textwidth]{images/tic_tac_toe_game_tree.png}
+%     \caption{The first three levels of the game tree of Tic Tac Toe (upto symmetry)}
+% \end{figure}
+
+Ideally, states should appear in pairs in the game tree, depending on which players turn it is to play. However, for multiplayer games where the players alternate in turns to play, we
+can identify the player if we know who the first player was and how many turns have passed since the game started. So in our tree, we do not need to have multiple copies of states differing only in player.
+
+For two player turn based terminating games, in order to make the arguments less verbose, let us call the player who started the game \textbf{Player A}, and the other player, \textbf{Player B}.
+However, in any state, let us call the player whose turn it is to play, \textbf{Player 1} and the other player, \textbf{Player 2}. The introduction of these terms makes the arguments less verbose.
+However, it is important to note that the identities of players 1 and 2 are not fixed and keep going back and forth between players A and B every turn.
+
+Any game played corresponds to a path from the root of the tree to a leaf. At the root, player 1 is player A and player 2 is player B. As we go down the tree from one node to the next, the identities of players 1 and 2 keep getting swapped.
+Now, a leaf node must be either a win for the player 1 (a loss for player 2) or a loss for player 1 (a win for player 2) or a draw.
+Let us assign the leaf nodes a value of $0$ if they correspond to draws, $1$ if player 1 has won, and $-1$ if player 1 has lost. 
+
+In general, we assign a value of $1$ to a node, if player 1 has a winning strategy, $0$ if player 1 has no winning strategy, but can force a draw, and $-1$ if no matter what player 1 does, player 2 can play in such a way as to win.
+
+Now, if all the children of a node have value $1$, this means that no matter what player whose turn it is does, he moves into a state where the other player has a winning strategy.
+Therefore, this state is losing for the player, ie, it has value $-1$. On the other hand, if there exists a child state with value $-1$, then there exists a move that the player can make
+that puts the other player in a losing position, ie, the original state has value $1$. If there exists no child state with value $-1$ but a child state with value $0$, then the player does not have 
+a winning strategy but can force a draw. Hence this state has value $0$.
+
+Now, we can find the values of every node in the tree from the bottom up, according to the relation:
+\begin{equation}
+    V(u) = \begin{cases}
+        1, & \exists v \in C(u): V(v) = -1\\
+        0, & \forall v \in C(u): V(v) \geq 0, \exists v \in C(u): V(v) = 0 \\
+        -1, & \forall v \in C(u): V(v) = 1
+    \end{cases}
+\end{equation}
+Here $V(u)$ represents the value of a node $u$, and $C(u)$ represents the set of children of $u$.
+
+From, this we can conclude that every node in the tree has a value of either $-1$, $0$ or $1$, including the root node. This means that for 
+every two person deterministic finite game, there exists a non-losing strategy for one of the players. 
+
+Given that we know the value of each node in the Game Tree, we can find an optimal strategy for a player.
+The strategy is this: If it is the players turn to play and the game is in state $S$, then move to the child state of $S$ with the \textbf{lowest} value.
+
+To prove this strategy is optimal, note that the moves $1 \rightarrow -1$ and $0 \rightarrow 0$ are the only optimal moves in the game, ie, after this
+move, any move by the opponent will leave us in a state atleast as good as the original state. The remaining moves ($1 \rightarrow 0$, $1 \rightarrow 1$ and $0 \rightarrow 1$) are
+suboptimal moves. Note that the move $-1 \rightarrow 1$ is a forced move, and so we will not consider it a suboptimal move.
+
+Now, assume that we play the game with our strategy, and the opponent makes a suboptimal move in the duration of the game. In this case the opponent has either 
+moved $1 \rightarrow 0$, $1 \rightarrow 1$ or $0 \rightarrow 1$. This means that we are now in a state of either $0$ or $1$. If we are in the state $0$, no matter what the opponent does, she will
+not win, as we know of a strategy to force a draw. If we are in the state $1$, then no matter what the opponent does, she will lose, as we know of a winning strategy.\footnote{In fact, if the opponent makes more than one mistake, we can always force a win.}
+
+This means, that if we play using our strategy, the \textbf{only} way our opponent can win, is if she makes no suboptimal moves, ie, if she plays perfectly. This makes our strategy optimal.
+
+Technically, an optimal strategy can be found this way for every deterministic terminating two player game, including games such as Chess. However, this method requires us to find the value of every node in the game tree, and the game trees 
+for games such as Chess are extremely large (Chess has more than $10^{40}$ possible states!). This makes finding the optimal strategy in this way too computationally expensive.\footnote{This method runs in $O(\text{number of possible states})$}
+\subsection{The Minimax Algorithm}
+This algorithm is a generalization of the game tree method for games with more than two players. In this case, our trick of having only one value function will not work.
+In this case, we will have $k$ values for each state, one for each player.
+
+We can once again build a game tree. Here we don't need to make separate states for states differing only in the player whose turn it is, as we are assigning separate value functions for them.
+
+We assign values to the leaf nodes according to their favourabilities for the players. Each player seeks to reach a leaf with maximum value to her. We also associate each node to the player whose turn it is at that point in the game.
+
+For non-leaf nodes, we define the value of a node $u$ with respect to the player $A$ as:
+\begin{equation}
+    V_{A}(u) = \begin{cases}
+        \min(V_{A}(v),  v \in C(u)), & f(u) \neq A\\
+        \max(V_{A}(v), v \in C(u)), & f(u) = A
+    \end{cases}
+\end{equation}
+Here, $f(u)$ refers to the player whose turn it is to move in state $u$, and $C(u)$ refer to the child states of $u$.
+
+The value at a node with respect to a player $A$ represents the maximum possible value $A$ can acquire at the end, if all the other players conspire against her and play perfectly so as to minimize the value $A$ gets at the end.
+
+The minimax strategy would simply be to always move to the state that maximizes your value. It can be shown that when every player follows a minimax strategy, the game is in a \textit{Nash Equilibrium}. The two player strategy described earlier 
+is a minimax strategy, since in that game tree, for each node $u$, $V(u) = V_{f(u)}(u)$ and $V_{A}(u) + V_{B}(u) = 0$.
+
+\section{The Reinforcement Learning Method}
+Here, we shall give an example of how one could train a Reinforcement Learning algorithm to learn to play a two player game such as Chess or Tic Tac Toe.
+
+We train the algorithm by making it play games (we usually make it play against itself). While playing games, it learns the values of the states. 
+
+Let's say our algorithm learns how to play the two player game as the first player. In the game tree, it assigns a value of $0$ to all drawn leaf nodes, $1$ to all leaf nodes where it wins,
+and $-1$ to all leaf nodes where it loses. It never changes the values of these leaf nodes.
+
+During gameplay, it traverses the Game Tree of the game from the root to a leaf. During gameplay, it can either explore (by making a random move) or exploit (by moving to the state with highest value - such moves are called greedy moves).
+We shall see methods of balancing exploration and exploitation later, when we talk about bandits.
+Every time it makes a greedy move, we adjust the values of the previous nodes to make it closer. For our strategy, since we need to know only the values of the nodes where the opponent is to play, sometimes we neglect updating the values of the nodes where it is our turn.
+But here, we will update both. The update rule is:
+\begin{equation}
+    V_{A}(v) \leftarrow V_{A}(v) + \alpha(V_{A}(w) - V_{A}(v))
+\end{equation}
+\begin{equation}
+    V_{A}(u) \leftarrow V_{A}(u) + \alpha(V_{A}(v) - V_{A}(u))
+\end{equation}
+Here, $w$ is a node we reached by playing a greedy move, and $v$ and $u$ are it's parent and grandparent respectively.
+
+Therefore, our value becomes:
+\begin{equation}
+    V_{A}(u) = \begin{cases}
+        \max(V_{A}(v), v \in C(u)), & f(u) = A\\
+        \mathop{\mathbb{E}}_{opponent}\left[V_{A}(v_{opponent})\right], & f(u) \neq A
+    \end{cases}
+\end{equation}
+Therefore, our algorithm eventually learns to play against a particular opponent.
+
+During training our strategy would be to balance exploration (greedy moves) and exploitation (non-greedy moves) in some way, but after training
+we will only make greedy moves, ie, our strategy would be to just move to the state with highest value for us (same as the Minimax strategy).
+
+\chapter{Multiarmed Bandits}
+\section{Definitions}
+An \textit{n-armed bandit} is defined in terms of the following situation:
+
+The agent faces a choice between $n$ actions out of which it must choose one. On choosing an action, it gets a reward, that is drawn from some probability distribution that depends on the chosen action. 
+After the choice, the agent faces the same $n$ choices, with the same reward distributions again. We denote the actions made by the agent as $A_{1}$, $A_{2}$, $\cdots$. We say the situation after $k$ actions is in the $(k+1)^{th}$ timestep.
+The aim of the agent is to act in such a way as to maximize the total expected reward it gets.
+
+Some key points to note are:
+\begin{itemize}
+    \item The agent does not know the probability distributions before hand (if it did, the optimal action would be to choose the action with the highest expected reward every time). It must estimate these distributions.
+    \item The probability distributions do not vary with time (when we remove this restriction, we get non-stationary bandits).
+    \item A bandit has only one state (when we remove this restriction, we get contextual bandits - however, note that even here, we impose the condition that the action taken by the agent does not affect the next state of the bandit).
+\end{itemize}
+The presence of only one state in a bandit, allows us to use these to explore methods of balancing exploration and exploitation more easily.
+
+% We can also define the regret of a move as $\max(q(a), a \in A) - q(A_{t})$.
+
+\section{Balancing Exploration and Exploitation}
+Let $A$ denote the set of possible actions. For each $a \in A$, let $q(a)$ denote the expected reward for that action. We define the value of each action as $q(a)$. If we knew the values of each state,
+the optimal policy would be to choose the action with the highest value each time.
+
+During gameplay, our agent estimates the value of each action from it's experiences. At the $t^{th}$ timestep, we denote the estimated value for action $a$ as $Q_{t}(a)$.
+There are many ways for estimating $Q_{t}(a)$. Perhaps the simplest one would be the sample average:
+\begin{equation}
+    % \begin{align*}
+    Q_{t}(a) = \frac{\sum\limits_{i = 1}^{N_{t}(a)}R_{i}(a)}{N_{t}(a)}, N_{t}(a) > 0
+    % \end{align*}
+\end{equation}
+with $Q_{t}(a)$ assigned an arbitrary value when $N_{t}(a)$ is $0$ ($N_{t}(a)$ represents the number of times option $a$ has been tried by the $t^{th}$ timestep). By the Law of Large Numbers, as $N_{t}(a) \rightarrow \infty$, $Q_{t}(a) \rightarrow q(a)$.
+
+Noting that $Q_{t}(a)$ can change only when $N_{t}(a)$ changes, we can subscript $Q$ with $k = N_{t}(a)$ instead. After doing this, we see that, for the sample average method
+\begin{equation}
+    Q_{k + 1}(a) = Q_{k}(a) + \frac{1}{k + 1}(R_{k + 1}(a) - Q_{k}(a))
+\end{equation}
+This is of the form
+\begin{equation}
+    Q_{k + 1}(a) = Q_{k}(a) + \alpha_{k}(R_{k + 1}(a) - Q_{k}(a))
+\end{equation}
+where $\alpha_{k} = \frac{1}{k + 1}$.
+
+We can create many value estimators from the recurrence relation mentioned above by changing $\alpha_{k}$. 
+
+The condition for $Q_{k}(a)$ to converge to $q(a)$ with probability $1$ (for a stationary distribution) is given by:
+\begin{eqnarray}
+    \sum\limits_{i = 1}^{\infty} \alpha_{i} = \infty\\
+    \sum\limits_{i = 1}^{\infty} \alpha_{i}^{2} < \infty
+\end{eqnarray}
+The first condition ensures that $\alpha_{i}$ are big enough to overcome the arbitrarily decided initial value of $Q$ and overcome the noise in the earlier values of $R_{i}(a)$, and 
+the second condition ensures that they are small enough to overcome the noise in the later values of $R_{i}$.
+
+For non-stationary bandits, we often want to give more weight to the newer values of $R_{i}$, as these more closely reflect the actual expectated reward at the current time.
+Therefore, for non-stationary bandits, we often choose $\alpha_{i}$ to violate the second condition. A common choice is to keep $\alpha_{i}$ constant, ie, $\alpha_{i} = \alpha$.
+
+Now, given we've estimated $Q_{t}(a)$, we need to find strategies to balance exploration and exploitation.
+
+\subsection{The Greedy Policy}
+Here, we always choose the action with the highest estimated value.
+\begin{equation}
+    A_{t} = \arg\max_{a \in A} Q_{t}(a) 
+\end{equation}
+Very little exploration happens here. However, we can increase the amount of exploration, at least in the initial stages, by exploiting the fact that the initial values $Q_{0}(a)$ are set by us.
+This is known as \textbf{Optimistic Initial Value Selection}. Here, we set $Q_{0}(a) >> q(a)$. Therefore, for the first few actions, $Q_{t}(a)$ will only decrease. This means that the greedy policy will 
+choose actions that haven't been chosen earlier, encouraging exploration. We can use this method with the other policies as well, including the ones described later. 
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{images/optimistic-policy.jpg}
+%     \caption{Here we have prepared a testbed of 100 identical 10 armed bandits, and we test multiple strategies on this testbed. \texttt{\% Optimal Action} refers to the percentage of bandits in the testbed choosing the action with the highest value. One can see that the optimistic greedy policy sometimes outperforms realistic versions of even non-greedy algorithms.}
+% \end{figure}
+
+\subsection{\texorpdfstring{The $\epsilon$-Greedy Policy}{}}
+Here, our policy becomes stochastic.
+\begin{eqnarray}
+    A_{t} = \arg\max_{a \in A} Q_{t}(a), \text{with probability $1 - \epsilon$}\\
+    A_{t} = \text{random choice from $A$}, \text{ with probability $\epsilon$}
+\end{eqnarray}
+Note that even in the second case, it is possible for $\arg\max_{a \in A} Q_{t}(a)$ to be chosen. All ties in the first case are broken randomly.
+
+The advantage of this policy is that, as $t \rightarrow \infty$, $N_{t}(a) \rightarrow \infty, \forall a \in A$. If we use the sample average to estimate 
+$Q_{t}$ (and if the bandit is stationary), this means that $\forall a \in A, Q_{t}(a) \rightarrow q(a)$.
+
+If $\epsilon = 0$, then this strategy reduces to the greedy policy. For small values of $\epsilon$, the agent learns slowly, and for larger values it learns more quickly.
+However, asymptotically, the agent performs better with smaller values of $\epsilon$ than with larger values.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{images/Epsilon-greedy.png}
+%     \caption{We again use the same testbed described earlier and compare greedy and $\epsilon$-greedy policies. \texttt{Average Reward} here refers to the average reward each agent obtained at a particular timestep. As we can see, the $\epsilon$-greedy policies perform better than the greedy policies. Among the $\epsilon$-greedy policies, the one with the lower $\epsilon$ learns slower, but asymptotically performs better than the one with higher $\epsilon$.}
+% \end{figure}
+
+\subsection{Upper Confidence Bound Action Selection}
+One problem with $\epsilon$ greedy policies are that, during exploration, it gives no preference to actions with higher values, or to relatively underexplored actions over low value, well explored actions.
+The UCBA selection method chooses the action with the largest upper confidence bound, where the upper confidence bound of an action is the largest value of $q(a)$ that we are reasonably confident is possible for the action $a$.
+For actions tried many times, this upper bound will be close to the estimated $Q_{t}$, whereas for untried actions it'll be much larger than it. Formally, speaking the policy is:
+\begin{equation}
+    A_{t} = \arg\max_{a \in A}\left[Q_{t}(a) + c\sqrt{\frac{\ln t}{N_{t}(a)}}\right]
+\end{equation}
+When $N_{t}(a)$ is $0$, we set the argument to $\infty$. The reason we keep the additive term proportional to $\frac{1}{\sqrt{N_{t}(a)}}$ is because of the Law of Large Numbers, 
+which states that the uncertainty in an estimate after $n$ measurements is proportional to $\frac{1}{\sqrt{n}}$. The $\sqrt{\ln t}$ term appears because that is a function that, although grows extremely slowly,
+is unbounded. This ensures that as $t \rightarrow \infty$, $N_{t}(a) \rightarrow \infty, \forall a \in A$. 
+
+The UCBA policy is one of the most effective ways of dealing with stationary bandits\footnote{This is because it can be shown the total regret with the UCBA policy at the $t^{th}$ timestep grows as $O(\log t)$. Here the regret at a particular move is defined as $\max(q(a), a \in A) - q(A_{t})$.}, however, it does not generalize very well
+to non-stationary bandits. 
+% \begin{figure}[h!]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{images/UCBA.png}
+%     \caption{We use the same testbed again to compare the UCBA and $\epsilon$-greedy policies. As you can see, the UCBA policy is better.}
+% \end{figure}
+
+\subsection{Gradient Bandits}
+Here we associate to each action a preference $H_{t}(a)$, such that the policy becomes:
+\begin{equation}
+    \mathop{\mathbb{P}}(A_{t} = a) = \pi_{t}(a) = \frac{\exp{H_{t}(a)}}{\sum\limits_{b \in A} \exp{H_{t}(b)}}, \forall a \in A
+\end{equation}
+This distribution is known as the Softmax distribution. We try to find the values of $H_{t}(a)$ that maximize $\mathop{\mathbb{E}}_{A_{t}}\left[\mathop{\mathbb{E}}_{R | A_{t}}\left[R\right]\right] = \mathop{\mathbb{E}}_{A_{t}}\left[q(A_{t})\right]$ (the expected reward at each timestep). 
+We find the optimal values of $H_{t}(a)$ via Gradient Ascent.
+\begin{equation}
+    H_{t + 1}(a) = H_{t}(a) + \alpha \frac{\partial}{\partial H_{t}(a)} \mathop{\mathbb{E}}_{A_{t}}\left[\mathop{\mathbb{E}}_{R | A_{t}}\left[R\right]\right]
+\end{equation}
+
+However, we cannot calculate this derivative directly as we do not know the value of $\mathop{\mathbb{E}}_{R | A_{t}}\left[R\right] = q(A_{t})$. However, it can be shown that
+\begin{equation}
+    \mathop{\mathbb{E}}_{A_{t}}\left[\mathop{\mathbb{E}}_{R | A_{t}}\left[R - \overline{R_{t}}\right](\mathop{\mathbb{I}}(a = A_{t}) - \pi_{t}(a))\right] = \frac{\partial}{\partial H_{t}(a)}\mathop{\mathbb{E}}_{A_{t}}\left[\mathop{\mathbb{E}}_{R | A_{t}}\left[R\right]\right]
+\end{equation}
+where $\mathop{\mathbb{I}}$ is the indicator function, which is $1$ if it's argument is true, and $0$ if it is false, and $\overline{R_{t}}$ is the average reward obtained so far, ie
+\begin{equation}
+    \overline{R_{t}} = \frac{\sum\limits_{i = 1}^{t - 1} R_{i}}{t - 1}
+\end{equation}
+
+Therefore, we can use Stochastic Gradient Ascent, where
+\begin{equation}
+    H_{t + 1}(a) = H_{t}(a) + \alpha (R_{t} - \overline{R_{t}})(\mathop{\mathbb{I}}(a = A_{t}) - \pi_{t}(a)), \forall a \in A
+\end{equation}
+where $A_{t}$ is the chosen action and $R_{t}$ is the obtained reward.
+
+Equation (2.12) remains valid if $\overline{R_{t}}$ is replaced by any constant $X_{t}$. However, putting $X_{t} = \overline{R_{t}}$ improves the performance of the algorithm greatly by improving the speed of convergence of the gradient ascent and ensuring that below average rewards are punished immediately, as we can see in the following graph.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{images/gradient-bandit.png}
+%     \caption{We use the previously discussed testbed to compare different types of Gradient Ascent algorithms.}
+% \end{figure}
+
+\subsection{Thompson Sampling}
+This is a Bayesian approach to the multiarmed bandit problem. It can be used when the class of the reward distributions for the actions is known or can be reasonably guessed.
+We assume that $R(a) \sim P(R; \theta_{a})$, ie, the rewards for each action are drawn from the same family of probability distributions, differing only in parameter $\theta$.
+
+We use Baye's Theorem to get the posterior distribution of $\theta_{a}$ for each $a \in A$, assuming a suitable prior (usually the conjugate prior, to make our calculations easier)
+\begin{equation}
+    P(\theta_{a} | R_{1}, R_{2} \dots) = \frac{P(R_{1}, R_{2} \dots | \theta_{a})P(\theta_{a})}{P(R_{1}, R_{2} \dots)}
+\end{equation}
+We then sample\footnote{We sample $\theta$ instead of estimating it from the posterior as estimating can make this policy too greedy} $\theta^{*}_{a}$ from each posterior distribution. We then choose the action with the highest value ($\mathop{\mathbb{E}}_{\theta^{*}_{a}}\left[R\right]$), where the values are calculated according to the 
+sampled parameters.
+
+This policy is often even more efficient then the UCBA policy, as this - like the UCBA policy - focuses exploration on actions that are nearly optimal, or actions with a high variance.
+
+A disadvantage of this method is that it is more computationally expensive than the others discussed so far.
+
+\section{Comparing Policies}
+Note that all of these policies have parameters that change the effectiveness of the policies. For each policy it is the case that the parameters have optimal values that make the policies as optimal as possible.
+Considering the policies with their parameters optimized, it seems that for stationary bandits, the Upper Confidence Bound Action (UCBA) Selection Policy\footnote{This may be because it can be shown the total regret with the UCBA policy at the $t^{th}$ timestep grows as $O(\log t)$. Here the regret at a particular move is defined as $\max(q(a), a \in A) - q(A_{t})$.} and Thompson Sampling\footnote{Not shown in this graph} perform the best. 
+
+% \begin{figure}[h!]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{images/compare-bandit.png}
+%     \caption{We compare all the different policies on our testbed over different values for their parameters. $\texttt{Average Reward}$ here refers to the average reward obtained over the first $1000$ timesteps. The characteristic inverted U shape of these curves shows that an optimal value exists for the parameters.}
+% \end{figure}
+
+However, among these policies, only the $\epsilon$-greedy policies and the gradient bandit policies can be readily generalized to more complex RL problems.
+
+\section{Contextual Bandits}
+One of the defining properties of bandits were that they possess only one state. The situation is therefore \textbf{non-associative} (ie we don't deal with multiple states), and therefore we could easily design 
+and test algorithms that balance exploration and exploitation.
+
+When we define contextual bandits, we remove the restriction that there is only one state but still impose that the actions taken by the agent do not affect the next state of the bandit. In this case, we can train separate RL algorithms 
+over each state of the bandit.
+
+For example, say we have $k$ normal bandits. Each time we take an action on a bandit, the bandit is replaced with a different one, in a manner that is \textbf{independent} of the action taken. Also, the bandits are \textbf{distinguishable}, 
+ie, before we take an action we know which bandit we are dealing with. This situation behaves exactly like a contextual bandit with $k$ states. In this scenario we can learn a separate policy for each bandit.
+
+The conditions of \textbf{independence} and \textbf{distinguishability} allow us to decouple this problem into $k$ single state problems.
+
+% \section{Itemization in Unordered Lists}
+% The same thing, but as an unordered list.
+% \begin{itemize}
+%     \item Comparison based sorting algorithms\\
+%           These algorithms will always have $\Omega(n\log n)$ comparisons.
+%           \begin{itemize}
+%               \item Sorting algorithms that are $O(n^2)$ on average
+%                     \begin{itemize}
+%                         \item Bubble Sort
+%                         \item Insertion Sort
+%                         \item Selection Sort
+%                         \item Comb Sort
+%                         \item Exchange Sort
+%                         \item Shell Sort
+%                     \end{itemize}
+%               \item Sorting algorithms that are $O(n\log n)$ on average
+%                     \begin{itemize}
+%                         \item Merge Sort
+%                         \item Heap Sort
+%                         \item Quick Sort
+%                     \end{itemize}
+%           \end{itemize}
+%     \item Distribution based sorting algorithms\\
+%           These algorithms can be more efficient than $n\log n$ and are all $\Omega(n)$.\\
+%           However they make some assumptions about the distribution of the elements of the array.
+%           \begin{itemize}
+%               \item Counting Sort\\
+%                     Here it is assumed that the elements of the array belong to a set $S$ of possibilities.\\
+%                     It's time complexity is then $O(n + |S|)$.
+%               \item Bucket Sort\\
+%                     Here we divide the array into $k$ buckets, and sort the buckets, and then merge them.\\
+%                     It's time complexity is $O(n + \frac{n^{2}}{k} + k)$.
+%               \item Radix Sort\\
+%                     Here we assume that the elements are to be sorted lexicographically.\\
+%                     It's time complexity is $O(wn)$ where $w$ is the length of each element.
+%           \end{itemize}
+% \end{itemize}
+
+
+% % \chapter{Images with Captions}
+% % Have a look at these images with captions related to sorting.
+% % \begin{figure}[h!]
+% %     \centering
+% %     % \includegraphics[width=0.6\textwidth]{images/selection-sort.png}
+% %     \caption{Selection Sort}
+% % \end{figure}
+% % \begin{figure}[h!]
+% %     \centering
+% %     % \includegraphics[width=0.8\textwidth]{images/complexities.png}
+% %     \caption{Time Complexities of some Sorting Algorithms}
+% % \end{figure}
+
+% \chapter{A Table with Captions}
+
+% \begin{table}[h!]
+%     \begin{tabular}{ |p{2.5cm}||p{2.5cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|  }
+%         \hline
+%         \multicolumn{5}{|c|}{Sorting Algorithms} \\
+%         \hline
+%         \centering Algorithm& \centering Best Case Complexity & \centering Average Case Complexity&\centering Worst Case Complexity& Memory Complexity\\
+%         \hline
+%         \centering Bubblesort & \centering $\Omega(n)$ & \centering $\Theta(n^{2})$ & \centering $O(n^{2})$ & $O(1)$\\
+%         \hline
+%         \centering Insertion Sort & \centering $\Omega(n)$ & \centering $\Theta(n^{2})$ & \centering $O(n^{2})$ & $O(1)$\\
+%         \hline
+%         \centering Selection Sort & \centering $\Omega(n^{2})$ & \centering $\Theta(n^{2})$ & \centering $O(n^{2})$ & $O(1)$\\
+%         \hline
+%         \centering Comb Sort & \centering $\Omega(n\log n)$ & \centering $\Theta(n^{2})$ & \centering $O(n^{2})$ & $O(1)$\\
+%         \hline
+%         \centering Exchange Sort & \centering $\Omega(n^{2})$ & \centering $\Theta(n^{2})$ & \centering $O(n^{2})$ & $O(1)$\\
+%         \hline
+%         \centering Shell Sort & \centering $\Omega(n\log n)$ & \centering $\Theta(n^{\frac{4}{3}})$ & \centering $O(n^{\frac{3}{2}})$ & $O(1)$\\
+%         \hline
+%         \centering Merge Sort & \centering $\Omega(n\log n)$ & \centering $\Theta(n\log n)$ & \centering $O(n\log n)$ & $O(n)$\\
+%         \hline
+%         \centering Heap Sort & \centering $\Omega(n\log n)$ & \centering $\Theta(n\log n)$ & \centering $O(n\log n)$ & $O(1)$\\
+%         \hline
+%         \centering Quick Sort & \centering $\Omega(n\log n)$ & \centering $\Theta(n\log n)$ & \centering $O(n^{2})$ & $O(\log n)$\\
+%         \hline
+%         \centering Counting Sort & \centering $\Omega(n + r)$ & \centering $\Theta(n + r)$ & \centering $O(n + r)$ & $O(n + r)$\\
+%         \hline
+%         \centering Bucket Sort & \centering $\Omega(n + r)$ & \centering $\Theta(n + r)$ & \centering $O(n + r)$ & $O(n + r)$\\
+%         \hline
+%         \centering Radix Sort & \centering $\Omega(n)$ & \centering $\Theta(n\frac{k}{d})$ & \centering $O(n\frac{k}{d})$ & $O(n + 2^{d})$\\
+%         \hline
+%     \end{tabular}
+%     \caption{Some popular sorting algorithms and their complexities}
+% \end{table}
+
+% \chapter{Algorithm and Code}
+% Here we will discuss an algorithm to print the first $n$ Fibonacci numbers.
+% This was part of the second inlab of \textbf{CS 251}.
+% The pseudocode of this algorithm is as follows:
+% \begin{algorithmic}[1]
+%     \State $x \gets 0$
+%     \State $y \gets 1$
+%     \For{$k \gets 1$ to $n$}
+%     \State \textbf{print} $x$
+%     \State $temp \gets x$
+%     \State $x \gets y$
+%     \State $y \gets y + temp$
+%     \EndFor
+% \end{algorithmic}
+% The implementation of this algorithm as a \textit{Bash} Script is as follows:
+
+% \begin{lstlisting}[language=bash,caption={Calculating the Fibonacci Numbers}]
+% #! /bin/bash
+
+% x=0
+% y=1
+% str=""
+% num=$(($1))
+% for ((i=0; i<$num; i++))
+% do
+%     str+="$x "
+%     temp=$(($x))
+%     x=$(($y))
+%     y=$(($y+$temp))
+% done
+% echo $str
+% \end{lstlisting}
+
+% \chapter{Minipage}
+% The following is a boxed minipage.\\
+% \fbox{
+%     \begin{minipage}{6cm}
+%         Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+%         sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\\ 
+%         Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\\
+%         Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.\\
+%         Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+%     \end{minipage}
+% }
+
+\end{document}
